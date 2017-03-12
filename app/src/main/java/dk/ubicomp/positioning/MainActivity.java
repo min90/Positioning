@@ -5,27 +5,31 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import butterknife.OnClick;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String DEBUG_TAG = MainActivity.class.getSimpleName();
+
+    @BindView(R.id.btn_map) Button btnMap;
+    @BindView(R.id.btn_scan) Button btnScan;
+    @BindView(R.id.btn_info) Button btnInfo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        ButterKnife.bind(this);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-       FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
     }
 
     @Override
@@ -33,6 +37,22 @@ public class MainActivity extends AppCompatActivity {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
+    }
+
+    @OnClick(R.id.btn_map)
+    public void openMap() {
+        Log.d(DEBUG_TAG, "Map blev klikket");
+        FragmentTransactioner.get().transactFragments(this, new MapFragment(), "map_fragment");
+    }
+
+    @OnClick(R.id.btn_scan)
+    public void openScanList() {
+        Log.d(DEBUG_TAG, "Åben scanner fragment");
+    }
+
+    @OnClick(R.id.btn_info)
+    public void openInfoFragment() {
+        Log.d(DEBUG_TAG, "Info Fragment");
     }
 
     @Override
