@@ -23,6 +23,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.Marker;
+import com.mapspeople.mapcontrol.MapControl;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -42,6 +43,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
     private GoogleApiClient mGoogleApiClient;
     private Location lastKnownLocation;
     private GoogleMap mGoogleMap;
+    private MapControl mapControl;
 
     @Nullable
     @Override
@@ -50,12 +52,19 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
         ButterKnife.bind(this, view);
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
+
         return view;
     }
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+    }
+
+    private void goIndoors() {
+        mapControl = new MapControl(getActivity(), mapView);
+        //mapControl.setOnDataReadyListener(this);
+        mapControl.initMap("573f26e4bc1f571b08094312", "rtx");
     }
 
 
@@ -118,8 +127,6 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
         }
     }
 
-
-
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         switch (requestCode) {
@@ -137,6 +144,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
     @Override
     public boolean onMyLocationButtonClick() {
         Log.d(DEBUG_TAG, "Klikket");
+        goIndoors();
         return false;
     }
 }

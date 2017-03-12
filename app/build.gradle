@@ -31,4 +31,6 @@ dependencies {
     compile 'com.jakewharton:butterknife:8.5.1'
     annotationProcessor 'com.jakewharton:butterknife-compiler:8.5.1'
     compile 'com.google.android.gms:play-services-maps:10.2.0'
+    compile 'com.google.code.gson:gson:2.4'
+    compile 'com.mapspeople.mapsindoors:mapsindoorssdk:1.8.3@aar'
 }
