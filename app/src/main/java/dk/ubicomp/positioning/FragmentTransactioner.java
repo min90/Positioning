@@ -27,6 +27,16 @@ public class FragmentTransactioner {
     private FragmentTransactioner() {
     }
 
+
+    public void returnToHome(Activity activity) {
+        FragmentManager fragmentManager = ((MainActivity) activity).getSupportFragmentManager();
+
+        // First, clear back stack
+        if (fragmentManager.getBackStackEntryCount() != 0) {
+            fragmentManager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+        }
+    }
+
     public void transactFragments(Activity activity, Fragment fragment, String backStackTag) {
         if (fragment != null) {
             FragmentManager fragmentManager = ((FragmentActivity) activity).getSupportFragmentManager();
