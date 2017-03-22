@@ -9,6 +9,7 @@ import com.kontakt.sdk.android.common.profile.IBeaconDevice;
  */
 public class BeaconLocation {
     public static Location getBeaconLocation(IBeaconDevice beacon) {
+
         return new Location("Beacon location");
     }
 }

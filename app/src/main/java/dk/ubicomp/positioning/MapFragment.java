@@ -32,6 +32,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.kontakt.sdk.android.ble.connection.OnServiceReadyListener;
 import com.kontakt.sdk.android.ble.manager.ProximityManager;
 import com.kontakt.sdk.android.ble.manager.ProximityManagerFactory;
@@ -71,6 +72,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
     private static int REQUEST_ENABLE_BT = 1;
     private ProximityManager proximityManager;
     private ArrayList<IBeaconDevice> beacons = new ArrayList<>();
+    private boolean useBT = false;
 
     @BindView(R.id.map_view)
     MapView mapView;
@@ -103,24 +105,25 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         geom = geometryData.parseOULocations();
         Log.d(DEBUG_TAG, "Geometry: " + geom.toString());
 
-//        //Beacons
-//        //Check bluetooth on device
-//        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-//        if (mBluetoothAdapter == null) {
-//            // Device does not support Bluetooth
-//        }
-//        //Enable bluetooth if not enabled
-//        if (!mBluetoothAdapter.isEnabled()) {
-//            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-//            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-//        }else {
-//            listenForBluetooth();
-//        }
+        //Beacons
+        //Check bluetooth on device
+        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (mBluetoothAdapter != null) {
+            //Enable bluetooth if not enabled
+            if (!mBluetoothAdapter.isEnabled()) {
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+            }else {
+                listenForBluetooth();
+            }
+        }
+
 
         return view;
     }
 
     private void listenForBluetooth() {
+        Log.d(DEBUG_TAG, "Started listening for bluetooth");
         KontaktSDK.initialize("qslWWgrHTjrQIcJWBfLnIPfyohnvKhfS");
         proximityManager = ProximityManagerFactory.create(getActivity());
         proximityManager.setIBeaconListener(createIBeaconListener());
@@ -179,7 +182,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
     public void onStart() {
         super.onStart();
         if (mGoogleApiClient != null) mGoogleApiClient.connect();
-        //startScanning();
+        startScanning();
     }
 
     @Override
@@ -332,14 +335,15 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         return false;
     }
 
-//    private void startScanning() {
-//        proximityManager.connect(new OnServiceReadyListener() {
-//            @Override
-//            public void onServiceReady() {
-//                proximityManager.startScanning();
-//            }
-//        });
-//    }
+    private void startScanning() {
+        proximityManager.connect(new OnServiceReadyListener() {
+            @Override
+            public void onServiceReady() {
+                Log.d(DEBUG_TAG, "ProxyMgr started scanning!");
+                proximityManager.startScanning();
+            }
+        });
+    }
 
 
     // Use a marker for user location
@@ -350,34 +354,39 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         return new SimpleIBeaconListener() {
             @Override
             public void onIBeaconDiscovered(IBeaconDevice ibeacon, IBeaconRegion region) {
-                Log.i(DEBUG_TAG, "IBeacon discovered: " + ibeacon.toString());
+                Log.d(DEBUG_TAG, "IBeacon discovered: " + ibeacon.toString());
                 beacons.add(ibeacon);
                 printBeacons();
                 IBeaconDevice beaconDevice = getHighestRSSI();
-                //Location userLocation = findLocationByLateration(beacons);
-                //if(userLocation != null)
-                //    Log.i(DEBUG_TAG, userLocation.toString());
+                Location userLocation = findLocationByLateration(beacons);
+                if(userLocation != null) {
+                    Log.i(DEBUG_TAG, userLocation.toString());
+                    mGoogleMap.addMarker(new MarkerOptions().position(new LatLng(userLocation.getLatitude(), userLocation.getLongitude()))
+                    .title("Bluetooth location"));
+                    moveCamera(mGoogleMap, 20, new LatLng(userLocation.getLatitude(), userLocation.getLongitude()));
+                }
+
 
             }
             @Override
             public void onIBeaconsUpdated(List<IBeaconDevice> iBeacons, IBeaconRegion region) {
-                Log.i("Sample", "Beacons updated size: " + iBeacons.size());
+                Log.d("Sample", "Beacons updated size: " + iBeacons.size());
                 beacons = new ArrayList<>(iBeacons);
                 printBeacons();
                 IBeaconDevice beaconDevice = getHighestRSSI();
-                //Location userLocation = findLocationByLateration(beacons);
-                //if(userLocation != null)
-                //    Log.i(DEBUG_TAG, userLocation.toString());
+                Location userLocation = findLocationByLateration(beacons);
+                if(userLocation != null)
+                    Log.i(DEBUG_TAG, userLocation.toString());
             }
             @Override
             public void onIBeaconLost(IBeaconDevice iBeacon, IBeaconRegion region) {
-                Log.i("Sample", "Beacon lost: " + iBeacon.toString());
+                Log.d("Sample", "Beacon lost: " + iBeacon.toString());
                 beacons.remove(iBeacon);
                 printBeacons();
                 IBeaconDevice beaconDevice = getHighestRSSI();
-                //Location userLocation = findLocationByLateration(beacons);
-                //if(userLocation != null)
-                //   Log.i(DEBUG_TAG, userLocation.toString());
+                Location userLocation = findLocationByLateration(beacons);
+                if(userLocation != null)
+                   Log.i(DEBUG_TAG, userLocation.toString());
             }
         };
     }
@@ -403,24 +412,25 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         }
     }
 
-//    private Location findLocationByLateration(ArrayList<IBeaconDevice> b) {
-//        if(b.size() >= 3) {
-//            Location beaconA = BeaconLocation.getBeaconLocation(b.get(0));
-//            Location beaconB = BeaconLocation.getBeaconLocation(b.get(1));
-//            Location beaconC = BeaconLocation.getBeaconLocation(b.get(2));
-//
-//            return FindLocationByBeacon.getLocationWithTrilateration(
-//                    beaconA,
-//                    beaconB,
-//                    beaconC,
-//                    FindLocationByBeacon.getRssiAsMeters(b.get(0).getRssi()),
-//                    FindLocationByBeacon.getRssiAsMeters(b.get(1).getRssi()),
-//                    FindLocationByBeacon.getRssiAsMeters(b.get(2).getRssi())
-//            );
-//        } else {
-//            return null;
-//        }
-//    }
+    private Location findLocationByLateration(ArrayList<IBeaconDevice> b) {
+        if(b.size() >= 3) {
+            Location beaconA = BeaconLocation.getBeaconLocation(b.get(0));
+            Location beaconB = BeaconLocation.getBeaconLocation(b.get(1));
+            Location beaconC = BeaconLocation.getBeaconLocation(b.get(2));
+
+            return FindLocationByBeacon.getLocationWithTrilateration(
+                    beaconA,
+                    beaconB,
+                    beaconC,
+                    FindLocationByBeacon.getRssiAsMeters(b.get(0).getRssi()),
+                    FindLocationByBeacon.getRssiAsMeters(b.get(1).getRssi()),
+                    FindLocationByBeacon.getRssiAsMeters(b.get(2).getRssi())
+            );
+        } else {
+            return null;
+        }
+    }
+
     //For bluetooth
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
