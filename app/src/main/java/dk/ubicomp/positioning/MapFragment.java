@@ -421,6 +421,9 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         userLocation.setLongitude(longitude);
         userLocation.setLatitude(latitude);
 
+        Toast toast = Toast.makeText(getContext(), "Snapping to locatin " + roomAlias, Toast.LENGTH_SHORT);
+        toast.show();
+
         return userLocation;
     }
 
