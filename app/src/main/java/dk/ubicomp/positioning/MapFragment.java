@@ -441,6 +441,8 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
 
         userLocation.setLongitude(longitude);
         userLocation.setLatitude(latitude);
+        
+
         return userLocation;
     }
 
