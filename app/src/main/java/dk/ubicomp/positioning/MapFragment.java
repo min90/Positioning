@@ -85,7 +85,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
 
     private ArrayList<Beacon> parsedBeacons;
     private ArrayList<Geometry> geom;
-
+    private Marker userBTLocation;
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -360,11 +360,12 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
                 printBeacons();
                 IBeaconDevice beaconDevice = getHighestRSSI();
 
-                Location userLocation = findLocationByLateration(beacons);
+                Location userLocation = findLocationBySnapping(beaconDevice);
                 if(userLocation != null) {
-                    Log.i(DEBUG_TAG, userLocation.toString());
-                    mGoogleMap.addMarker(new MarkerOptions().position(new LatLng(userLocation.getLatitude(), userLocation.getLongitude()))
-                    .title("Bluetooth location"));
+                    if(userBTLocation != null)
+                        userBTLocation.remove();
+                    userBTLocation = mGoogleMap.addMarker(new MarkerOptions().position(new LatLng(userLocation.getLatitude(), userLocation.getLongitude()))
+                            .title("Bluetooth location by snapping"));
                     moveCamera(mGoogleMap, 20, new LatLng(userLocation.getLatitude(), userLocation.getLongitude()));
                 }
 
@@ -377,20 +378,21 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
                 printBeacons();
                 IBeaconDevice beaconDevice = getHighestRSSI();
 
-                Location userLocation = findLocationByLateration(beacons);
-                if(userLocation != null)
-                    Log.i(DEBUG_TAG, userLocation.toString());
+                Location userLocation = findLocationBySnapping(beaconDevice);
+                if(userLocation != null) {
+                    if(userBTLocation != null)
+                        userBTLocation.remove();
+                    userBTLocation = mGoogleMap.addMarker(new MarkerOptions().position(new LatLng(userLocation.getLatitude(), userLocation.getLongitude()))
+                            .title("Bluetooth location by snapping"));
+                    moveCamera(mGoogleMap, 20, new LatLng(userLocation.getLatitude(), userLocation.getLongitude()));
+                }
+
 
             }
             @Override
             public void onIBeaconLost(IBeaconDevice iBeacon, IBeaconRegion region) {
                 Log.d("Sample", "Beacon lost: " + iBeacon.toString());
                 beacons.remove(iBeacon);
-                printBeacons();
-                IBeaconDevice beaconDevice = getHighestRSSI();
-                Location userLocation = findLocationByLateration(beacons);
-                if(userLocation != null)
-                   Log.i(DEBUG_TAG, userLocation.toString());
             }
         };
     }
@@ -407,17 +409,40 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         }
         return maxBeacon;
     }
-/*
+
     private Location findLocationBySnapping(IBeaconDevice iBeacon){
         String roomAlias = iBeacon.getUniqueId();
-        ArrayList<Latlng> latlngs;
-
-        for (int i=0; i<geom.size(); i++){
-            latlngs.add(i, geom.get(i).getCoordinates());
+        ArrayList<LatLng> latlngs = new ArrayList();
+        Location userLocation = new Location(roomAlias);
+        double latitude = 0.0;
+        double longitude = 0.0;
+        //Find ibeacon room
+        String room = "";
+        for (Beacon b : parsedBeacons) {
+            if(b.getAlias().equals(roomAlias))
+                room = b.getRoomId();
         }
 
+        for (int i=0; i<geom.size(); i++){
+            if (geom.get(i).getRoomId().equals(room))
+                latlngs = geom.get(i).getCoordinates();
+        }
+
+        if(latlngs.size() == 0 || room == "")
+            return null;
+
+        for (LatLng latlng: latlngs) {
+            latitude += latlng.latitude;
+            longitude += latlng.longitude;
+        }
+
+        longitude = longitude/latlngs.size();
+        latitude = latitude/latlngs.size();
+
+        userLocation.setLongitude(longitude);
+        userLocation.setLatitude(latitude);
         return userLocation;
-    }*/
+    }
 
     private void printBeacons() {
         Log.i(DEBUG_TAG, "Beacon list:");
