@@ -355,7 +355,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
                 beacons.add(ibeacon);
                 printBeacons();
                 IBeaconDevice beaconDevice = getHighestRSSI();
-                //Location userLocation = findLocationBySnapping(beaconDevice);
+                Location userLocation = findLocationBySnapping(beaconDevice);
                 //Location userLocation = findLocationByLateration(beacons);
                 //if(userLocation != null)
                 //    Log.i(DEBUG_TAG, userLocation.toString());
@@ -367,7 +367,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
                 beacons = new ArrayList<>(iBeacons);
                 printBeacons();
                 IBeaconDevice beaconDevice = getHighestRSSI();
-                //Location userLocation = findLocationBySnapping(beaconDevice);
+                Location userLocation = findLocationBySnapping(beaconDevice);
                 //Location userLocation = findLocationByLateration(beacons);
                 //if(userLocation != null)
                 //    Log.i(DEBUG_TAG, userLocation.toString());
@@ -397,17 +397,32 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         }
         return maxBeacon;
     }
-/*
+
     private Location findLocationBySnapping(IBeaconDevice iBeacon){
         String roomAlias = iBeacon.getUniqueId();
-        ArrayList<Latlng> latlngs;
+        ArrayList<LatLng> latlngs = new ArrayList();
+        Location userLocation = new Location(roomAlias);
+        double latitude = 0.0;
+        double longitude = 0.0;
 
         for (int i=0; i<geom.size(); i++){
-            latlngs.add(i, geom.get(i).getCoordinates());
+            if (geom.get(i).getRoomId().equals(roomAlias))
+                latlngs = geom.get(i).getCoordinates();
         }
 
+        for (LatLng latlng: latlngs) {
+            latitude += latlng.latitude;
+            longitude += latlng.longitude;
+        }
+
+        longitude = longitude/latlngs.size();
+        latitude = latitude/latlngs.size();
+
+        userLocation.setLongitude(longitude);
+        userLocation.setLatitude(latitude);
+
         return userLocation;
-    }*/
+    }
 
     private void printBeacons() {
         Log.i(DEBUG_TAG, "Beacon list:");
