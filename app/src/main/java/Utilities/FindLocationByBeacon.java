@@ -2,6 +2,8 @@ package Utilities;
 
 import android.location.Location;
 
+import com.kontakt.sdk.android.common.profile.IBeaconDevice;
+
 /**
  * Created by Mads on 21-03-2017.
  */
