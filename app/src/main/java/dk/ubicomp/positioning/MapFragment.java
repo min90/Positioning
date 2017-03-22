@@ -23,6 +23,7 @@ import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -48,6 +49,7 @@ import com.mapspeople.models.PushMessageCollection;
 import com.mapspeople.models.Solution;
 import com.mapspeople.models.VenueCollection;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -78,6 +80,9 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
     private GoogleMap mGoogleMap;
     private MapControl mapControl;
 
+    private ArrayList<Beacon> parsedBeacons;
+    private ArrayList<Geometry> geom;
+
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -91,19 +96,26 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         mapControl.initMap("55cdde212a91e0049824fe86", "sdu");
         connectToGoogleAPI();
 
-        //Beacons
-        //Check bluetooth on device
-        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (mBluetoothAdapter == null) {
-            // Device does not support Bluetooth
-        }
-        //Enable bluetooth if not enabled
-        if (!mBluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-        }else {
-            listenForBluetooth();
-        }
+        GeometryData geometryData = new GeometryData(getActivity());
+        parsedBeacons = geometryData.parseBeacons();
+        Log.d(DEBUG_TAG, "beacons " + parsedBeacons.toString());
+
+        geom = geometryData.parseOULocations();
+        Log.d(DEBUG_TAG, "Geometry: " + geom.toString());
+
+//        //Beacons
+//        //Check bluetooth on device
+//        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+//        if (mBluetoothAdapter == null) {
+//            // Device does not support Bluetooth
+//        }
+//        //Enable bluetooth if not enabled
+//        if (!mBluetoothAdapter.isEnabled()) {
+//            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+//            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+//        }else {
+//            listenForBluetooth();
+//        }
 
         return view;
     }
@@ -167,7 +179,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
     public void onStart() {
         super.onStart();
         if (mGoogleApiClient != null) mGoogleApiClient.connect();
-        startScanning();
+        //startScanning();
     }
 
     @Override
@@ -294,10 +306,10 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
 
             return;
         }
-        lastKnownLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-        Point pos = new Point(lastKnownLocation.getLongitude(), lastKnownLocation.getLatitude());
-        mapControl.setMapPosition(pos, true);
-        moveCamera(mGoogleMap, 17, new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()));
+        //lastKnownLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+        //Point pos = new Point(lastKnownLocation.getLongitude(), lastKnownLocation.getLatitude());
+        //mapControl.setMapPosition(pos, true);
+        //moveCamera(mGoogleMap, 17, new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()));
     }
 
     @Override
@@ -320,15 +332,20 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         return false;
     }
 
-    private void startScanning() {
-        proximityManager.connect(new OnServiceReadyListener() {
-            @Override
-            public void onServiceReady() {
-                proximityManager.startScanning();
-            }
-        });
-    }
+//    private void startScanning() {
+//        proximityManager.connect(new OnServiceReadyListener() {
+//            @Override
+//            public void onServiceReady() {
+//                proximityManager.startScanning();
+//            }
+//        });
+//    }
 
+
+    // Use a marker for user location
+    // Use snapping where we look at the strength of the signal (RSSI)
+    // So if room U165 is the strongest we snap to that room
+    // Update beacons every 5 sec.
     private IBeaconListener createIBeaconListener() {
         return new SimpleIBeaconListener() {
             @Override
@@ -336,9 +353,10 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
                 Log.i(DEBUG_TAG, "IBeacon discovered: " + ibeacon.toString());
                 beacons.add(ibeacon);
                 printBeacons();
-                Location userLocation = findLocationByLateration(beacons);
-                if(userLocation != null)
-                    Log.i(DEBUG_TAG, userLocation.toString());
+                IBeaconDevice beaconDevice = getHighestRSSI();
+                //Location userLocation = findLocationByLateration(beacons);
+                //if(userLocation != null)
+                //    Log.i(DEBUG_TAG, userLocation.toString());
 
             }
             @Override
@@ -346,46 +364,63 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
                 Log.i("Sample", "Beacons updated size: " + iBeacons.size());
                 beacons = new ArrayList<>(iBeacons);
                 printBeacons();
-                Location userLocation = findLocationByLateration(beacons);
-                if(userLocation != null)
-                    Log.i(DEBUG_TAG, userLocation.toString());
+                IBeaconDevice beaconDevice = getHighestRSSI();
+                //Location userLocation = findLocationByLateration(beacons);
+                //if(userLocation != null)
+                //    Log.i(DEBUG_TAG, userLocation.toString());
             }
             @Override
             public void onIBeaconLost(IBeaconDevice iBeacon, IBeaconRegion region) {
                 Log.i("Sample", "Beacon lost: " + iBeacon.toString());
                 beacons.remove(iBeacon);
                 printBeacons();
-                Location userLocation = findLocationByLateration(beacons);
-                if(userLocation != null)
-                    Log.i(DEBUG_TAG, userLocation.toString());
+                IBeaconDevice beaconDevice = getHighestRSSI();
+                //Location userLocation = findLocationByLateration(beacons);
+                //if(userLocation != null)
+                //   Log.i(DEBUG_TAG, userLocation.toString());
             }
         };
     }
-    private void printBeacons() {
-        Log.i(DEBUG_TAG.toString(), "Beacon list:");
+
+    private IBeaconDevice getHighestRSSI() {
+        IBeaconDevice maxBeacon = null;
         for (IBeaconDevice beacon : beacons) {
-            Log.i(DEBUG_TAG.toString(), beacon.toString());
+
+            if(maxBeacon == null || maxBeacon.getRssi() > beacon.getRssi()) {
+                maxBeacon = beacon;
+            }
+
+            Log.d(DEBUG_TAG, "Beacon: " + beacon.getRssi());
+        }
+        return maxBeacon;
+    }
+
+    private void printBeacons() {
+        Log.i(DEBUG_TAG, "Beacon list:");
+        for (IBeaconDevice beacon : beacons) {
+            Log.d(DEBUG_TAG, "Beacon: " + beacon.getRssi());
+            Log.i(DEBUG_TAG, beacon.toString());
         }
     }
 
-    private Location findLocationByLateration(ArrayList<IBeaconDevice> b) {
-        if(b.size() >= 3) {
-            Location beaconA = BeaconLocation.getBeaconLocation(b.get(0));
-            Location beaconB = BeaconLocation.getBeaconLocation(b.get(1));
-            Location beaconC = BeaconLocation.getBeaconLocation(b.get(2));
-
-            return FindLocationByBeacon.getLocationWithTrilateration(
-                    beaconA,
-                    beaconB,
-                    beaconC,
-                    FindLocationByBeacon.getRssiAsMeters(b.get(0).getRssi()),
-                    FindLocationByBeacon.getRssiAsMeters(b.get(1).getRssi()),
-                    FindLocationByBeacon.getRssiAsMeters(b.get(2).getRssi())
-            );
-        } else {
-            return null;
-        }
-    }
+//    private Location findLocationByLateration(ArrayList<IBeaconDevice> b) {
+//        if(b.size() >= 3) {
+//            Location beaconA = BeaconLocation.getBeaconLocation(b.get(0));
+//            Location beaconB = BeaconLocation.getBeaconLocation(b.get(1));
+//            Location beaconC = BeaconLocation.getBeaconLocation(b.get(2));
+//
+//            return FindLocationByBeacon.getLocationWithTrilateration(
+//                    beaconA,
+//                    beaconB,
+//                    beaconC,
+//                    FindLocationByBeacon.getRssiAsMeters(b.get(0).getRssi()),
+//                    FindLocationByBeacon.getRssiAsMeters(b.get(1).getRssi()),
+//                    FindLocationByBeacon.getRssiAsMeters(b.get(2).getRssi())
+//            );
+//        } else {
+//            return null;
+//        }
+//    }
     //For bluetooth
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {

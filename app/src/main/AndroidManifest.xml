@@ -8,7 +8,6 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -30,6 +29,7 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDIWay7CPs670V5kXkmukI4Kt25297CPz0"
             />
+        <service android:name="com.kontakt.sdk.android.ble.service.ProximityService" android:exported="false" />
     </application>
 
 </manifest>
