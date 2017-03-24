@@ -15,6 +15,10 @@ public class Beacon {
     private String level;
     private String roomName;
 
+    public Beacon() {
+
+    }
+
     public Beacon(String alias, String uuid, String major, String minor, String instanceID, String roomId, String level, String roomName) {
         this.alias = alias;
         this.uuid = uuid;

@@ -7,7 +7,15 @@
         android:id="@+id/explorer_update"
         android:orderInCategory="100"
         android:title="@string/menu_update"
-        android:icon="@drawable/ic_update_icon"
+        android:icon="@drawable/ic_stat_name"
+        app:showAsAction="ifRoom"
+        />
+
+    <item
+        android:id="@+id/explorer_centroid"
+        android:orderInCategory="100"
+        android:title="@string/menu_update"
+        android:icon="@drawable/ic_gps_off_name"
         app:showAsAction="ifRoom"
         />
 </menu>

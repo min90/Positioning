@@ -41,9 +41,12 @@ import com.kontakt.sdk.android.ble.manager.listeners.simple.SimpleIBeaconListene
 import com.kontakt.sdk.android.common.KontaktSDK;
 import com.kontakt.sdk.android.common.profile.IBeaconDevice;
 import com.kontakt.sdk.android.common.profile.IBeaconRegion;
+import com.kontakt.sdk.android.common.util.ArrayUtils;
 import com.mapspeople.data.OnDataReadyListener;
 import com.mapspeople.mapcontrol.MapControl;
+import com.mapspeople.mapcontrol.OnFloorUpdateListener;
 import com.mapspeople.models.AppConfig;
+import com.mapspeople.models.Building;
 import com.mapspeople.models.CategoryCollection;
 import com.mapspeople.models.Point;
 import com.mapspeople.models.PushMessageCollection;
@@ -53,7 +56,13 @@ import com.google.android.gms.maps.model.LatLng;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import Utilities.BeaconLocation;
 import Utilities.FindLocationByBeacon;
@@ -86,6 +95,9 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
     private ArrayList<Beacon> parsedBeacons;
     private ArrayList<Geometry> geom;
     private Marker userBTLocation;
+    private boolean snappingInUse = false;
+
+
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -142,10 +154,17 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         Log.d(DEBUG_TAG, "hello");
         switch (item.getItemId()) {
             case R.id.explorer_update:
-                Toast.makeText(getActivity(), "Switching to indoor", Toast.LENGTH_SHORT).show();
+                snappingInUse = true;
+                Toast.makeText(getActivity(), "Switching to snapping", Toast.LENGTH_SHORT).show();
+                break;
+            case R.id.explorer_centroid:
+                snappingInUse = false;
+                Toast.makeText(getActivity(), "Switching to centroid", Toast.LENGTH_SHORT).show();
+                break;
             default:
                 return super.onOptionsItemSelected(item);
         }
+        return true;
     }
 
     @Override
@@ -310,10 +329,19 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
 
             return;
         }
-        //lastKnownLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-        //Point pos = new Point(lastKnownLocation.getLongitude(), lastKnownLocation.getLatitude());
-        //mapControl.setMapPosition(pos, true);
-        //moveCamera(mGoogleMap, 17, new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()));
+        lastKnownLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+        Point pos = new Point(lastKnownLocation.getLongitude(), lastKnownLocation.getLatitude());
+        mapControl.setMapPosition(pos, true);
+        moveCamera(mGoogleMap, 17, new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()));
+        notifyLocalizationMethod();
+    }
+
+    private void notifyLocalizationMethod() {
+        if(snappingInUse) {
+            Toast.makeText(getActivity(), "Snapping is in use!", Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(getActivity(), "Centroid Localization is in use!", Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override
@@ -360,13 +388,30 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
                 printBeacons();
                 IBeaconDevice beaconDevice = getHighestRSSI();
 
-                Location userLocation = findLocationBySnapping(beaconDevice);
-                if(userLocation != null) {
+                LatLng userLocation = null;
+                HashMap<String, LatLng> userMap;
+                String floor = "";
+                if(snappingInUse) {
+                    userMap = findLocationBySnapping(beaconDevice);
+                } else {
+                    userMap = findLocationByCentroidLoc(beacons);
+                }
+                if(userMap != null) {
+                    for (Map.Entry<String, LatLng> entry : userMap.entrySet()) {
+                        userLocation = entry.getValue();
+                        floor = entry.getKey();
+                        Log.d(DEBUG_TAG, "Location: " + userLocation.toString());
+                        Log.d(DEBUG_TAG, "Floor: " + floor);
+                    }
+                }
+
+                if(userLocation != null && floor != null && mapControl != null) {
                     if(userBTLocation != null)
                         userBTLocation.remove();
-                    userBTLocation = mGoogleMap.addMarker(new MarkerOptions().position(new LatLng(userLocation.getLatitude(), userLocation.getLongitude()))
-                            .title("Bluetooth location by snapping"));
-                    moveCamera(mGoogleMap, 20, new LatLng(userLocation.getLatitude(), userLocation.getLongitude()));
+                    userBTLocation = mGoogleMap.addMarker(new MarkerOptions().position(new LatLng(userLocation.latitude, userLocation.longitude))
+                            .title(beaconDevice.getName()).snippet("Info: " + userLocation.toString() + " " + floor));
+                    mapControl.selectFloor(Integer.parseInt(floor));
+                    moveCamera(mGoogleMap, 20, new LatLng(userLocation.latitude, userLocation.longitude));
                 }
 
 
@@ -378,13 +423,30 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
                 printBeacons();
                 IBeaconDevice beaconDevice = getHighestRSSI();
 
-                Location userLocation = findLocationBySnapping(beaconDevice);
-                if(userLocation != null) {
+                LatLng userLocation = null;
+                String floor = "";
+                HashMap<String, LatLng> userMap;
+                if(snappingInUse) {
+                    userMap = findLocationBySnapping(beaconDevice);
+                } else {
+                    userMap = findLocationByCentroidLoc(iBeacons);
+                }
+                if(userMap != null) {
+                    for (Map.Entry<String, LatLng> entry : userMap.entrySet()) {
+                        userLocation = entry.getValue();
+                        floor = entry.getKey();
+                        Log.d(DEBUG_TAG, "Location: " + userLocation.toString());
+                        Log.d(DEBUG_TAG, "Floor: " + floor);
+                    }
+                }
+
+                if(userLocation != null && floor != null && mapControl != null) {
                     if(userBTLocation != null)
                         userBTLocation.remove();
-                    userBTLocation = mGoogleMap.addMarker(new MarkerOptions().position(new LatLng(userLocation.getLatitude(), userLocation.getLongitude()))
-                            .title("Bluetooth location by snapping"));
-                    moveCamera(mGoogleMap, 20, new LatLng(userLocation.getLatitude(), userLocation.getLongitude()));
+                    userBTLocation = mGoogleMap.addMarker(new MarkerOptions().position(new LatLng(userLocation.latitude, userLocation.longitude))
+                            .title(beaconDevice.getName()).snippet("Info: " + userLocation.toString() + " " + floor));
+                    mapControl.selectFloor(Integer.parseInt(floor));
+                    moveCamera(mGoogleMap, 20, new LatLng(userLocation.latitude, userLocation.longitude));
                 }
 
 
@@ -410,25 +472,108 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         return maxBeacon;
     }
 
-    private Location findLocationBySnapping(IBeaconDevice iBeacon){
+    private String getFloor(ArrayList<String> mostCounts) {
+        int max = 0;
+        int curr;
+        String currKey =  null;
+        Set<String> unique = new HashSet<>(mostCounts);
+
+        for (String key : unique) {
+            curr = Collections.frequency(mostCounts, key);
+
+            if(max < curr){
+                max = curr;
+                currKey = key;
+            }
+        }
+
+        return currKey;
+    }
+
+    private HashMap<String, LatLng> findLocationByCentroidLoc(List<IBeaconDevice> beacons) {
+        HashMap<String, LatLng> updater = new HashMap<>();
+        double latitude;
+        double longitude;
+        ArrayList<Beacon> disBeacons = new ArrayList<>();
+        ArrayList<LatLng> latLngs = new ArrayList<>();
+
+        for (IBeaconDevice beacon : beacons) {
+            for (Beacon be : parsedBeacons) {
+                if(beacon.getUniqueId().equals(be.getAlias())) {
+                    disBeacons.add(be);
+                }
+            }
+        }
+
+        ArrayList<String> mostCounts = new ArrayList<>();
+
+        for (Geometry geo : geom) {
+            for (Beacon be : disBeacons) {
+                latitude = 0.0;
+                longitude = 0.0;
+                // Found a match in discovered beacons and location
+                if(geo.getRoomId().equalsIgnoreCase(be.getRoomId())) {
+                    for (int i = 0; i < geo.getCoordinates().size(); i++) {
+                        if (i != geo.getCoordinates().size() - 1) {
+                            latitude += geo.getCoordinates().get(i).latitude;
+                            longitude += geo.getCoordinates().get(i).longitude;
+                        }
+                    }
+                    mostCounts.add(be.getLevel().substring(0, 1));
+                    latitude = latitude / (double) (geo.getCoordinates().size() - 1);
+                    longitude = longitude / (double) (geo.getCoordinates().size() - 1);
+                    LatLng loc = new LatLng(latitude, longitude);
+                    latLngs.add(loc);
+                }
+            }
+        }
+
+        String floor = getFloor(mostCounts);
+        Log.d(DEBUG_TAG, "Floor in centroid: " + floor);
+
+        double tmpLongitude = 0.0;
+        double tmpLatitude = 0.0;
+        for (int i = 0; i < latLngs.size(); i++) {
+            tmpLongitude += latLngs.get(i).longitude;
+            tmpLatitude += latLngs.get(i).latitude;
+        }
+
+        if(latLngs.size() == 0) return null;
+        double finalLongitude = tmpLongitude / latLngs.size();
+        double finalLatitude = tmpLatitude / latLngs.size();
+
+        LatLng finalLocation = new LatLng(finalLatitude, finalLongitude);
+        updater.put(floor, finalLocation);
+
+        return updater;
+    }
+
+    private HashMap<String, LatLng> findLocationBySnapping(IBeaconDevice iBeacon){
+        HashMap<String, LatLng> updater = new HashMap<>();
+
         String roomAlias = iBeacon.getUniqueId();
-        ArrayList<LatLng> latlngs = new ArrayList();
-        Location userLocation = new Location(roomAlias);
+        ArrayList<LatLng> latlngs = new ArrayList<>();
+        String floor = "";
         double latitude = 0.0;
         double longitude = 0.0;
+
         //Find ibeacon room
         String room = "";
         for (Beacon b : parsedBeacons) {
-            if(b.getAlias().equals(roomAlias))
+            if(b.getAlias().equals(roomAlias)) {
                 room = b.getRoomId();
+                floor = b.getLevel().substring(0, 1);
+
+            }
         }
 
         for (int i=0; i<geom.size(); i++){
             if (geom.get(i).getRoomId().equals(room))
                 latlngs = geom.get(i).getCoordinates();
+
         }
 
-        if(latlngs.size() == 0 || room == "")
+        if(latlngs.size() == 0 || room.equalsIgnoreCase(""))
             return null;
 
         for (LatLng latlng: latlngs) {
@@ -439,11 +584,11 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         longitude = longitude/latlngs.size();
         latitude = latitude/latlngs.size();
 
-        userLocation.setLongitude(longitude);
-        userLocation.setLatitude(latitude);
+        LatLng userLocation = new LatLng(latitude, longitude);
         
 
-        return userLocation;
+        updater.put(floor, userLocation);
+        return updater;
     }
 
     private void printBeacons() {
@@ -451,25 +596,6 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleA
         for (IBeaconDevice beacon : beacons) {
             Log.d(DEBUG_TAG, "Beacon: " + beacon.getRssi());
             Log.i(DEBUG_TAG, beacon.toString());
-        }
-    }
-
-    private Location findLocationByLateration(ArrayList<IBeaconDevice> b) {
-        if(b.size() >= 3) {
-            Location beaconA = BeaconLocation.getBeaconLocation(b.get(0));
-            Location beaconB = BeaconLocation.getBeaconLocation(b.get(1));
-            Location beaconC = BeaconLocation.getBeaconLocation(b.get(2));
-
-            return FindLocationByBeacon.getLocationWithTrilateration(
-                    beaconA,
-                    beaconB,
-                    beaconC,
-                    FindLocationByBeacon.getRssiAsMeters(b.get(0).getRssi()),
-                    FindLocationByBeacon.getRssiAsMeters(b.get(1).getRssi()),
-                    FindLocationByBeacon.getRssiAsMeters(b.get(2).getRssi())
-            );
-        } else {
-            return null;
         }
     }
 
